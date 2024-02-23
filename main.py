@@ -9,7 +9,6 @@ import joblib
 from tensorflow.keras.models import load_model
 
 
-
 def train_model():
     # cargamos el csv
     file_path = "/Users/abdullah/PycharmProjects/weather_prediction/open-meteo.csv"
@@ -86,50 +85,53 @@ def train_model():
     mse = mean_squared_error(y_test_rescaled[:, 0], y_pred_rescaled[:, 0])
     print(f'Mean Squared Error: {mse}')
 
+def test():
+
+    model_path = "/Users/abdullah/PycharmProjects/WeatherPrediction/Model/model.h5"
+    model = load_model(model_path)
+
+    scaler_path = "/Users/abdullah/PycharmProjects/WeatherPrediction/Model/scaler.pkl"
+    scaler = joblib.load(scaler_path)
+
+    new_data_path = "/Users/abdullah/Downloads/1-15.csv"  # data 11Nov-17Nov
+    data = pd.read_csv(new_data_path)
+    # imprimimos unas filas para verificar
+    print(data.head())
+
+    # convertimos la columna 'valid' a tiempo y la ponemos como referencia de índice
+    data["time"] = pd.to_datetime(data["time"])
+    data.set_index("time", inplace=True)
+    print(data.head())
+
+    hourly_temp = data["Temperature"]
+    hourly_relh = data["Humidity"]
+    hourly_rain = data["Rain"]
+    hourly_wind = data["Wind"]
+    hourly_wind_gusts = data["Wind_Gusts"]
+
+    hourly_data = pd.DataFrame(
+        {"Temperature": hourly_temp, "Humidity": hourly_relh, "Rain": hourly_rain, "Wind": hourly_wind,
+         "Wind_Gusts": hourly_wind_gusts})
+    new_data_scaled = scaler.transform(hourly_data)
+
+    n_steps = 50
+    X_new = []
+    for i in range(n_steps, len(new_data_scaled)):
+        X_new.append(new_data_scaled[i - n_steps:i])
+    X_new = np.array(X_new)
+
+    predictions = model.predict(X_new)
+
+    predictions_rescaled = scaler.inverse_transform(np.hstack((predictions, np.zeros((predictions.shape[0], new_data_scaled.shape[1] - 1)))))
+    # Extract the rescaled predictions
+    rescaled_predictions = predictions_rescaled[:, 0]
+    print(rescaled_predictions)
+
+    first_24h = rescaled_predictions[0:24]
+    max_temp = float(max(first_24h))
+    min_temp = float(min(first_24h))
+    avg_temp = (max_temp + min_temp) / 2
+    print(avg_temp - 7)
 
 
-model_path = "/Users/abdullah/PycharmProjects/WeatherPrediction/Model/model.h5"
-model = load_model(model_path)
-
-scaler_path = "/Users/abdullah/PycharmProjects/WeatherPrediction/Model/scaler.pkl"
-scaler = joblib.load(scaler_path)
-
-new_data_path = "/Users/abdullah/PycharmProjects/loadModel/11-17.csv"  # data 11Nov-17Nov
-data = pd.read_csv(new_data_path)
-# imprimimos unas filas para verificar
-print(data.head())
-
-# convertimos la columna 'valid' a tiempo y la ponemos como referencia de índice
-data["time"] = pd.to_datetime(data["time"])
-data.set_index("time", inplace=True)
-print(data.head())
-
-hourly_temp = data["Temperature"]
-hourly_relh = data["Humidity"]
-hourly_rain = data["Rain"]
-hourly_wind = data["Wind"]
-hourly_wind_gusts = data["Wind_Gusts"]
-
-hourly_data = pd.DataFrame(
-    {"Temperature": hourly_temp, "Humidity": hourly_relh, "Rain": hourly_rain, "Wind": hourly_wind,
-     "Wind_Gusts": hourly_wind_gusts})
-new_data_scaled = scaler.transform(hourly_data)
-
-n_steps = 50
-X_new = []
-for i in range(n_steps, len(new_data_scaled)):
-    X_new.append(new_data_scaled[i - n_steps:i])
-X_new = np.array(X_new)
-
-predictions = model.predict(X_new)
-
-predictions_rescaled = scaler.inverse_transform(np.hstack((predictions, np.zeros((predictions.shape[0], new_data_scaled.shape[1] - 1)))))
-# Extract the rescaled predictions
-rescaled_predictions = predictions_rescaled[:, 0]
-print(rescaled_predictions)
-
-first_24h = rescaled_predictions[0:24]
-max_temp = float(max(first_24h))
-min_temp = float(min(first_24h))
-avg_temp = (max_temp + min_temp) / 2
-print(avg_temp)
+test()
